@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import nltk
 nltk.download('wordnet')
 from bs4 import BeautifulSoup
@@ -7,7 +8,8 @@ from nltk.corpus import stopwords
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem import WordNetLemmatizer
 from nltk.stem.porter import PorterStemmer
-
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 def remove_html(text):
     soup = BeautifulSoup(text, 'lxml')
@@ -69,6 +71,33 @@ def call_all():
 
     print(df['comment_text'])
 
+# make every word into numeric vectors, called the bag of words model. Display it as a table
+clean_text = np.vectorize(call_all)
+cv = CountVectorizer(min_df=0., max_df=1.)
+cv_matrix = cv.fit_transform(clean_text)
+cv_matrix = cv_matrix.toarray()
+print(cv_matrix)
+# get all unique words in the corpus
+vocab = cv.get_feature_names()
+# show document feature vectors
+pd.DataFrame(cv_matrix, columns=vocab)
 
+
+# creat a bigram model to see the frequency of phrases
+bv = CountVectorizer(ngram_range=(2,2))
+bv_matrix = bv.fit_transform(clean_text)
+
+bv_matrix = bv_matrix.toarray()
+vocab = bv.get_feature_names()
+pd.DataFrame(bv_matrix, columns=vocab)
+
+
+#tfidf model of the words
+tv = TfidfVectorizer(min_df=0., max_df=1., use_idf=True)
+tv_matrix = tv.fit_transform(norm_corpus)
+tv_matrix = tv_matrix.toarray()
+
+vocab = tv.get_feature_names()
+pd.DataFrame(np.round(tv_matrix, 2), columns=vocab)
 if __name__ == '__main__':
-    call_all()
+
