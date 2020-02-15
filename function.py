@@ -8,16 +8,25 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.stem.porter import PorterStemmer
 from nltk.tokenize import RegexpTokenizer
+from nltk import re
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-nltk.download('wordnet')
-
 
 def remove_html(text):
-    soup = BeautifulSoup(text, 'lxml')
+    soup = BeautifulSoup(text, 'html.parser')
     html_free = soup.get_text()
     return html_free
+
+
+def remove_urls(text):
+    url_pattern = re.compile(r'https?://\S+|www\.\S+')
+    return url_pattern.sub(r'', text)
+
+
+def remove_numbers(text):
+    result = re.sub(r'\d+', '', text)
+    return result
 
 
 def remove_punctuation(text):
@@ -56,46 +65,31 @@ def call_all():
     # read in csv file, create DataFrame and check shape
     df = pd.read_csv('train_small.csv')
     print(df.shape)
+    df['comment_text'] = df['comment_text'].apply(lambda x: remove_html(x))
 
-    # remove punctuation
-    df['comment_text'] = df['comment_text'].apply(
-        lambda x: remove_punctuation(x))
+    df['comment_text'] = df['comment_text'].apply(lambda x: remove_urls(x))
 
-    # Instantiate Tokenizer
+    df['comment_text'] = df['comment_text'].apply(lambda x: remove_numbers(x))
+
+    df['comment_text'] = df['comment_text'].apply(lambda x: remove_punctuation(x))
+
     tokenizer = RegexpTokenizer('\w+|\$[\d\.]+|\S+')
+    df['comment_text'] = df['comment_text'].apply(lambda x: tokenizer.tokenize(x.lower()))
 
-    df['comment_text'] = df['comment_text'].apply(
-        lambda x: tokenizer.tokenize(x.lower()))
-    # print(df['comment_text'].head(20))
-
-    # remove stop words
     df['comment_text'] = df['comment_text'].apply(lambda x: remove_stopwords(x))
-    # print(df['comment_text'].head(10))
 
-    # compare stemming and lemmatizer to see which one works better before
-    # assigning
-    # print(df['comment_text'].apply(lambda x: word_lemmatizer(x)))
-    # print(df['comment_text'].apply(lambda x: word_stemmer(x)))
+    df['comment_text'] = df['comment_text'].apply(lambda x: word_lemmatizer(x))
 
-    # df['comment_text'] = df['comment_text'].apply(lambda x: word_lemmatizer(x))
-
-    df['comment_text'] = df['comment_text'].apply(lambda x: word_stemmer(x))
+    # df['comment_text'] = df['comment_text'].apply(lambda x: word_stemmer(x))
 
     print(df['comment_text'])
 
     return df['comment_text']
 
 
-if __name__ == '__main__':
-    corpus = []
-
-    for i in call_all():
-        corpus.extend(i)
-
-    norm_corpus = np.array(corpus)
-
+def create_models(corp):
+    norm_corpus = np.array(corp)
     print(norm_corpus)
-
     # Bag of Words Model
     # make every word into numeric vectors, called the bag of words model.
     # Display it as a table
@@ -128,3 +122,14 @@ if __name__ == '__main__':
     vocab = tv.get_feature_names()
     print(vocab)
     print(pd.DataFrame(np.round(tv_matrix, 2), columns=vocab))
+
+
+if __name__ == '__main__':
+    corpus = []
+
+    for i in call_all():
+        corpus.extend(i)
+    create_models(corpus)
+
+
+
