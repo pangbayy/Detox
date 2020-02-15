@@ -1,10 +1,16 @@
+import re
 import string
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
+from keras import backend as K
+from keras.layers import Dense, Dropout, Embedding, Input, LSTM
+from keras.layers import GlobalMaxPool1D
+from keras.models import Model
+from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
-from nltk import re
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.stem.porter import PorterStemmer
@@ -129,6 +135,11 @@ def create_models(corp):
 
 
 if __name__ == '__main__':
+    df = pd.read_csv('train_small.csv')
+    list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult",
+                    "identity_hate"]
+    y = df[list_classes].values
+
     corpus = []
     list_sentences_train = call_all()
 
@@ -141,3 +152,46 @@ if __name__ == '__main__':
     tokenizer.fit_on_texts(list(list_sentences_train))
     list_tokenized_train = tokenizer.texts_to_sequences(list_sentences_train)
     print(list_tokenized_train[:1])
+
+    totalNumWords = [len(one_comment) for one_comment in list_tokenized_train]
+    plt.hist(totalNumWords, bins=np.arange(0, 410,
+                                           10))  # [0,50,100,150,200,250,300,350,400])#,450,500,550,600,650,700,750,800,850,900])
+    print(plt.show())
+
+    maxlen = 50
+    X_t = pad_sequences(list_tokenized_train, maxlen=maxlen)
+    inp = Input(shape=(maxlen, ))  # maxlen=200 as defined earlier
+
+    embed_size = 128
+    x = Embedding(max_features, embed_size)(inp)
+
+    x = LSTM(60, return_sequences=True, name='lstm_layer')(x)
+
+    x = GlobalMaxPool1D()(x)
+
+    x = Dropout(0.1)(x)
+
+    x = Dense(50, activation="relu")(x)
+
+    x = Dropout(0.1)(x)
+
+    x = Dense(6, activation="sigmoid")(x)
+
+    model = Model(inputs=inp, outputs=x)
+    model.compile(loss='binary_crossentropy',
+                  optimizer='adam',
+                  metrics=['accuracy'])
+
+    batch_size = 32
+    epochs = 2
+    model.fit(X_t, y, batch_size=batch_size, epochs=epochs,
+              validation_split=0.1)
+
+    print(model.summary())
+    # with a Sequential model
+    get_3rd_layer_output = K.function([model.layers[0].input],
+                                      [model.layers[2].output])
+    layer_output = get_3rd_layer_output([X_t[:1]])[0]
+    print(layer_output.shape)
+    print(layer_output)
+    # print layer_output to see the actual data
