@@ -1,14 +1,14 @@
 import string
 
-import nltk
 import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
+from keras.preprocessing.text import Tokenizer
+from nltk import re
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.stem.porter import PorterStemmer
 from nltk.tokenize import RegexpTokenizer
-from nltk import re
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -57,7 +57,7 @@ stemmer = PorterStemmer()
 
 def word_stemmer(text):
     # stem_text = " ".join([stemmer.stem(i) for i in text])
-    stem_text = [" ".join([stemmer.stem(i) for i in text])]
+    stem_text = " ".join([stemmer.stem(i) for i in text])
     return stem_text
 
 
@@ -71,16 +71,19 @@ def call_all():
 
     df['comment_text'] = df['comment_text'].apply(lambda x: remove_numbers(x))
 
-    df['comment_text'] = df['comment_text'].apply(lambda x: remove_punctuation(x))
+    df['comment_text'] = df['comment_text'].apply(
+        lambda x: remove_punctuation(x))
 
     tokenizer = RegexpTokenizer('\w+|\$[\d\.]+|\S+')
-    df['comment_text'] = df['comment_text'].apply(lambda x: tokenizer.tokenize(x.lower()))
+
+    df['comment_text'] = df['comment_text'].apply(
+        lambda x: tokenizer.tokenize(x.lower()))
 
     df['comment_text'] = df['comment_text'].apply(lambda x: remove_stopwords(x))
 
-    df['comment_text'] = df['comment_text'].apply(lambda x: word_lemmatizer(x))
+    # df['comment_text'] = df['comment_text'].apply(lambda x: word_lemmatizer(x))
 
-    # df['comment_text'] = df['comment_text'].apply(lambda x: word_stemmer(x))
+    df['comment_text'] = df['comment_text'].apply(lambda x: word_stemmer(x))
 
     print(df['comment_text'])
 
@@ -122,14 +125,19 @@ def create_models(corp):
     vocab = tv.get_feature_names()
     print(vocab)
     print(pd.DataFrame(np.round(tv_matrix, 2), columns=vocab))
+    return len(vocab)
 
 
 if __name__ == '__main__':
     corpus = []
+    list_sentences_train = call_all()
 
-    for i in call_all():
-        corpus.extend(i)
-    create_models(corpus)
+    for i in list_sentences_train:
+        corpus.append(i)
+    len_vocab = create_models(corpus)
 
-
-
+    max_features = len_vocab
+    tokenizer = Tokenizer(num_words=max_features)
+    tokenizer.fit_on_texts(list(list_sentences_train))
+    list_tokenized_train = tokenizer.texts_to_sequences(list_sentences_train)
+    print(list_tokenized_train[:1])
